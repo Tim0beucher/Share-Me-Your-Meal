@@ -138,7 +138,7 @@ export function AdaptModal({ recipe, onClose }: { recipe: RecipeDetail; onClose:
 
         <div>
           {ingredients.map((ing, index) => (
-            <div key={index}>
+            <div key={index} className="ingredient-block">
               <div className="ingredient-row">
                 <span className="ingredient-row__name">{ing.name}</span>
                 <input

@@ -149,6 +149,33 @@ export interface RecipeSavesTable {
   created_at: Generated<Timestamp>;
 }
 
+export type ReportTargetType = 'recette' | 'commentaire' | 'aliment' | 'utilisateur';
+export type ReportStatus = 'en_attente' | 'traite' | 'rejete';
+
+export interface ReportsTable {
+  id: Generated<string>;
+  reporter_id: string;
+  target_type: ReportTargetType;
+  target_id: string;
+  reason: string;
+  status: Generated<ReportStatus>;
+  resolved_by: string | null;
+  resolved_at: Timestamp | null;
+  resolution_note: string | null;
+  created_at: Generated<Timestamp>;
+}
+
+export interface CommentsTable {
+  id: Generated<string>;
+  recipe_id: string;
+  user_id: string;
+  parent_comment_id: string | null;
+  content: string;
+  is_hidden: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+  deleted_at: Timestamp | null;
+}
+
 export interface FoodUnitEquivalencesTable {
   id: Generated<string>;
   food_id: string | null;
@@ -190,4 +217,6 @@ export interface Database {
   collections: CollectionsTable;
   collection_recipes: CollectionRecipesTable;
   recipe_cook_events: RecipeCookEventsTable;
+  comments: CommentsTable;
+  reports: ReportsTable;
 }

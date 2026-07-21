@@ -21,13 +21,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Recharge la couleur d'accent enregistrée sur le profil à chaque
   // (re)connexion — le cache local (theme.ts) ne fait qu'éviter un flash
-  // avant que cette requête n'ait répondu.
+  // avant que cette requête n'ait répondu. Rafraîchit aussi le rôle affiché
+  // (utilisé pour montrer/cacher le lien Dashboard) : la comparaison évite
+  // de redéclencher cet effet en boucle via le changement de `user`.
   useEffect(() => {
     if (!user) return;
     api
       .get<UserProfile>('/me')
       .then((profile) => {
         if (profile.accent_color) applyAccent(profile.accent_color);
+        if (profile.role !== user.role) {
+          const updated = { ...user, role: profile.role };
+          localStorage.setItem('user', JSON.stringify(updated));
+          setUser(updated);
+        }
       })
       .catch(() => {});
   }, [user]);

@@ -3,13 +3,13 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Kysely } from 'kysely';
 import { KYSELY } from '../db/database.module';
-import { Database } from '../db/types';
+import { Database, UserRole } from '../db/types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 export interface AuthResult {
   accessToken: string;
-  user: { id: string; email: string; pseudo: string };
+  user: { id: string; email: string; pseudo: string; role: UserRole };
 }
 
 @Injectable()
@@ -38,7 +38,7 @@ export class AuthService {
         password_hash: passwordHash,
         auth_provider: 'email',
       })
-      .returning(['id', 'email', 'pseudo'])
+      .returning(['id', 'email', 'pseudo', 'role'])
       .executeTakeFirstOrThrow();
 
     return this.buildResult(user);
@@ -47,7 +47,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResult> {
     const user = await this.db
       .selectFrom('users')
-      .select(['id', 'email', 'pseudo', 'password_hash'])
+      .select(['id', 'email', 'pseudo', 'role', 'password_hash'])
       .where('email', '=', dto.email)
       .where('deleted_at', 'is', null)
       .executeTakeFirst();
@@ -56,12 +56,12 @@ export class AuthService {
       throw new UnauthorizedException('E-mail ou mot de passe incorrect.');
     }
 
-    return this.buildResult({ id: user.id, email: user.email, pseudo: user.pseudo });
+    return this.buildResult({ id: user.id, email: user.email, pseudo: user.pseudo, role: user.role });
   }
 
-  private buildResult(user: { id: string; email: string; pseudo: string }): AuthResult {
+  private buildResult(user: { id: string; email: string; pseudo: string; role: UserRole }): AuthResult {
     return {
-      accessToken: this.jwt.sign({ sub: user.id }),
+      accessToken: this.jwt.sign({ sub: user.id, role: user.role }),
       user,
     };
   }

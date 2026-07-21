@@ -9,9 +9,11 @@ export type MeasurementUnit =
   | 'verre'
   | 'tasse';
 
+export type UserRole = 'user' | 'creator' | 'coach' | 'admin';
+
 export interface AuthResult {
   accessToken: string;
-  user: { id: string; email: string; pseudo: string };
+  user: { id: string; email: string; pseudo: string; role: UserRole };
 }
 
 export interface FoodSearchResult {
@@ -108,6 +110,7 @@ export interface UserProfile {
   id: string;
   email: string;
   pseudo: string;
+  role: UserRole;
   avatar_url: string | null;
   bio: string | null;
   phone_number: string | null;
@@ -127,7 +130,44 @@ export interface Collection {
   recipe_count: number;
 }
 
+export interface Comment {
+  id: string;
+  content: string;
+  parent_comment_id: string | null;
+  created_at: string;
+  user_id: string;
+  author_pseudo: string;
+}
+
 export interface ActivityBucket {
   date: string;
   count: number;
+}
+
+export interface AdminStats {
+  users: number;
+  recipes: number;
+  comments: number;
+  pendingReports: number;
+}
+
+export interface AdminReport {
+  id: string;
+  target_type: 'recette' | 'commentaire' | 'aliment' | 'utilisateur';
+  target_id: string;
+  reason: string;
+  status: 'en_attente' | 'traite' | 'rejete';
+  resolution_note: string | null;
+  created_at: string;
+  reporter_pseudo: string;
+  targetPreview: string | null;
+}
+
+export interface AdminUser {
+  id: string;
+  pseudo: string;
+  email: string;
+  role: UserRole;
+  created_at: string;
+  deleted_at: string | null;
 }

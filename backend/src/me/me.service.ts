@@ -32,6 +32,7 @@ export class MeService {
         'id',
         'email',
         'pseudo',
+        'role',
         'avatar_url',
         'bio',
         'phone_number',

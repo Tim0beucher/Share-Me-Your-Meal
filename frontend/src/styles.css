@@ -29,6 +29,29 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Lueurs d'ambiance fixes, dans la couleur d'accent choisie par
+   l'utilisateur : casse le noir plat sans distraire du contenu (fixed +
+   z-index négatif, ne défile pas, reste sous la nav et les cartes). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 560px at 12% -8%, color-mix(in srgb, var(--color-primary) 20%, transparent), transparent 62%),
+    radial-gradient(ellipse 700px 480px at 105% 8%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 50% 115%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 65%);
+}
+
+.nav,
+.container {
+  position: relative;
+  z-index: 1;
 }
 
 h1, h2, h3, h4 {
@@ -178,9 +201,12 @@ a {
   color: var(--color-text-muted);
 }
 
-.field input,
-.field textarea,
-.field select {
+/* Règle non scopée à .field : un champ posé ailleurs dans la page (ex. la
+   réponse rapide à un commentaire) doit rester lisible sur fond sombre
+   sans avoir à réinventer ce style à chaque usage. */
+input,
+textarea,
+select {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--color-border);
@@ -190,13 +216,15 @@ a {
   font-family: inherit;
 }
 
-.field input:disabled {
+input:disabled,
+textarea:disabled,
+select:disabled {
   opacity: 0.6;
 }
 
-.field input:focus-visible,
-.field textarea:focus-visible,
-.field select:focus-visible {
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
 }
@@ -303,6 +331,27 @@ a {
 .ingredient-row__name {
   flex: 1;
   min-width: 0;
+}
+
+/* Regroupe une ligne d'ingrédient éditable et sa suggestion "équivalent
+   cuit" éventuelle (création de recette, fenêtre d'adaptation) : la ligne
+   perd sa propre bordure au profit d'une séparation par bloc, avec plus de
+   respiration qu'un simple empilement de .ingredient-row. */
+.ingredient-block {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ingredient-block .ingredient-row {
+  border-bottom: none;
+  padding: 0;
+}
+
+.cooked-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 10px 0 0;
 }
 
 .ingredient-row input[type='number'] {

@@ -30,7 +30,7 @@ export function CookedEquivalentHint({
   const best = suggestions[0];
 
   return (
-    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '-4px 0 8px', flexBasis: '100%' }}>
+    <p className="cooked-hint">
       🥩 Cru — équivalent cuit trouvé :{' '}
       <button
         type="button"

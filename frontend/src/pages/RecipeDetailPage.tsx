@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { RecipeDetail } from '../api/types';
 import { AdaptModal } from '../components/AdaptModal';
+import { CommentSection } from '../components/CommentSection';
 import { MacroGrid } from '../components/MacroGrid';
 import { useAuth } from '../auth/AuthContext';
 
@@ -102,6 +103,8 @@ export function RecipeDetailPage() {
           santé.
         </p>
       </div>
+
+      <CommentSection recipeId={recipe.id} />
 
       {showAdapt && <AdaptModal recipe={recipe} onClose={() => setShowAdapt(false)} />}
     </div>

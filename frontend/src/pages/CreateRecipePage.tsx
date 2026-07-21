@@ -127,7 +127,7 @@ export function CreateRecipePage() {
       <div className="card">
         <h2>Ingrédients</h2>
         {ingredients.map((ing, index) => (
-          <div key={index}>
+          <div key={index} className="ingredient-block">
             <div className="ingredient-row">
               <span className="ingredient-row__name">{ing.name}</span>
               <input type="number" min={0} value={ing.grams} onChange={(e) => updateGrams(index, Number(e.target.value))} />

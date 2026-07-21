@@ -1,9 +1,11 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { UserRole } from '../db/types';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
+  userRole?: UserRole;
 }
 
 @Injectable()
@@ -19,8 +21,9 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string }>(token);
+      const payload = await this.jwt.verifyAsync<{ sub: string; role: UserRole }>(token);
       request.userId = payload.sub;
+      request.userRole = payload.role;
       return true;
     } catch {
       throw new UnauthorizedException('Session invalide ou expirée.');
