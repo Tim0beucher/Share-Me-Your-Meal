@@ -1,0 +1,38 @@
+import { Route, Routes } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import { RequireAuth } from './auth/RequireAuth';
+import { CreateRecipePage } from './pages/CreateRecipePage';
+import { FeedPage } from './pages/FeedPage';
+import { LoginPage } from './pages/LoginPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { RecipeDetailPage } from './pages/RecipeDetailPage';
+import { RegisterPage } from './pages/RegisterPage';
+
+export function App() {
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<FeedPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/recipes/:id" element={<RecipeDetailPage />} />
+        <Route
+          path="/recipes/new"
+          element={
+            <RequireAuth>
+              <CreateRecipePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profil"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
+      </Routes>
+    </Layout>
+  );
+}

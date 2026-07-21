@@ -1,0 +1,420 @@
+:root {
+  /* --color-primary et --color-primary-ink sont réécrites en JS
+     (src/theme.ts) dès le chargement, à partir de la couleur d'accent
+     choisie par l'utilisateur (profil) ou d'un cache local ; les valeurs
+     ci-dessous ne servent que de repli avant ce premier calcul. */
+  --color-bg: #050608;
+  --color-surface: #0c0e13;
+  --color-surface-2: #12151d;
+  --color-border: #1e222c;
+  --color-text: #eef0f5;
+  --color-text-muted: #7c8497;
+  --color-primary: #2f6bff;
+  --color-primary-ink: #04070f;
+  --color-good: #35d68f;
+  --color-down: #ff3b3b;
+  --radius: 10px;
+  --font-display: Bahnschrift, "Segoe UI Semibold", sans-serif;
+  --font-body: "Segoe UI", Candara, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", monospace;
+  font-family: var(--font-body);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  margin: 0 0 14px;
+}
+
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.25rem; }
+
+/* Dans une carte, h2/h4 servent de petit libellé de section (Ingrédients,
+   Préparation...), pas de titre — traitement distinct du h2 "pleine page"
+   (fenêtre d'adaptation, connexion...). */
+.card h2,
+.card h4 {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+  margin-bottom: 14px;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 24px;
+}
+
+.nav__brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  text-decoration: none;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nav__brand::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  margin-left: 8px;
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+
+.nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  font-size: 0.92rem;
+}
+
+.nav__links a,
+.nav__links button {
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--color-primary);
+  color: var(--color-primary-ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 85%, black);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn--ghost:hover {
+  background: var(--color-surface-2);
+}
+
+.btn--danger {
+  background: var(--color-down);
+  color: #1a0605;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.field input,
+.field textarea,
+.field select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.field input:disabled {
+  opacity: 0.6;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.error-banner {
+  background: color-mix(in srgb, var(--color-down) 16%, var(--color-surface));
+  color: #ffb0a8;
+  border: 1px solid color-mix(in srgb, var(--color-down) 45%, var(--color-border));
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.recipe-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.recipe-card__title {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.recipe-card__meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.macro-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+}
+
+.macro-pill {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.macro-grid__item {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+/* La première tuile d'une grille de macros est toujours les calories : on
+   la met en avant avec l'accent, comme le total qui donne le ton du reste. */
+.macro-grid__item:first-child {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface-2));
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+}
+
+.macro-grid__item:first-child .macro-grid__value {
+  color: var(--color-primary);
+}
+
+.macro-grid__value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-grid__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.ingredient-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ingredient-row:last-child {
+  border-bottom: none;
+}
+
+.ingredient-row__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.ingredient-row input[type='number'] {
+  width: 72px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 3, 6, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.diff {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff--up {
+  color: var(--color-good);
+}
+
+.diff--down {
+  color: var(--color-down);
+}
+
+.steps-list {
+  padding-left: 20px;
+}
+
+.steps-list li {
+  margin-bottom: 8px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 40px 0;
+}
+
+.search-results {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.search-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.search-results button:hover {
+  background: var(--color-surface-2);
+}
+
+/* En dessous de ~480px, une ligne d'ingrédient (nom + quantité + boutons
+   Remplacer/✕) ne tient plus sur une seule ligne : le nom passe sur sa
+   propre ligne et les contrôles se regroupent sous lui plutôt que de se
+   comprimer ou déborder. */
+@media (max-width: 480px) {
+  .nav {
+    padding: 12px 16px;
+  }
+
+  .container {
+    padding: 0 12px 32px;
+  }
+
+  .modal-backdrop {
+    padding: 16px 8px;
+  }
+
+  .modal {
+    padding: 18px;
+  }
+
+  .ingredient-row__name {
+    flex-basis: 100%;
+  }
+
+  .ingredient-row .btn {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+  }
+}
