@@ -18,7 +18,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="nav__links">
           {user ? (
             <>
-              <Link to="/recettes">Recettes</Link>
+              <Link to="/recettes">Feed</Link>
               <Link to="/recipes/new">Créer une recette</Link>
               {user.role === 'admin' && <Link to="/admin">Dashboard</Link>}
               <Link to="/profil">{user.pseudo}</Link>
