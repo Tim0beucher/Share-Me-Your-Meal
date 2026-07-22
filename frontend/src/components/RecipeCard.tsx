@@ -4,6 +4,9 @@ import { FeedItem } from '../api/types';
 export function RecipeCard({ recipe }: { recipe: FeedItem }) {
   return (
     <Link to={`/recipes/${recipe.id}`} className="card recipe-card">
+      {recipe.coverPhotoUrl && (
+        <img src={recipe.coverPhotoUrl} alt="" className="recipe-card__photo" />
+      )}
       <h3 className="recipe-card__title">
         {recipe.title} {recipe.isAdaptation && <span title="Adaptation d'une autre recette">🔀</span>}
       </h3>

@@ -52,4 +52,9 @@ export class CreateRecipeDto {
   @IsBoolean()
   @IsOptional()
   publish?: boolean = false;
+
+  // Data URL base64 (image/jpeg;base64,...) déjà compressée côté client.
+  @IsString()
+  @IsOptional()
+  coverPhotoUrl?: string;
 }

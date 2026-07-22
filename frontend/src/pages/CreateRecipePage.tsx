@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { ChangeEvent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import { FoodSearchResult, MacroSet, RecipeDetail } from '../api/types';
 import { CookedEquivalentHint } from '../components/CookedEquivalentHint';
 import { FoodSearch } from '../components/FoodSearch';
 import { MacroGrid } from '../components/MacroGrid';
+import { compressImage } from '../lib/image';
 import { computeTotals, perServing } from '../lib/macros';
 
 interface DraftIngredient {
@@ -35,8 +36,22 @@ export function CreateRecipePage() {
   const [servings, setServings] = useState(2);
   const [ingredients, setIngredients] = useState<DraftIngredient[]>([]);
   const [steps, setSteps] = useState<string[]>(['']);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onPickPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      setCoverPhotoUrl(await compressImage(file));
+    } catch {
+      setPhotoError("Impossible de traiter cette image, essayez-en une autre.");
+    }
+  };
 
   const totals = useMemo(() => computeTotals(ingredients), [ingredients]);
   const totalsPerServing = useMemo(() => perServing(totals, servings), [totals, servings]);
@@ -85,6 +100,7 @@ export function CreateRecipePage() {
         description: description || undefined,
         servings,
         publish,
+        coverPhotoUrl: coverPhotoUrl || undefined,
         ingredients: ingredients.map((i) => ({ foodId: i.foodId, quantity: i.grams, unit: 'gramme' })),
         steps: steps
           .map((instruction, i) => ({ stepNumber: i + 1, instruction: instruction.trim() }))
@@ -121,6 +137,28 @@ export function CreateRecipePage() {
             value={servings}
             onChange={(e) => setServings(Math.max(1, Number(e.target.value)))}
           />
+        </div>
+        <div className="field">
+          <label htmlFor="cover-photo">Photo de la recette</label>
+          {photoError && <div className="error-banner">{photoError}</div>}
+          {coverPhotoUrl && (
+            <div style={{ marginBottom: 10 }}>
+              <img
+                src={coverPhotoUrl}
+                alt="Aperçu de la recette"
+                style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 12, display: 'block' }}
+              />
+              <button
+                type="button"
+                className="btn btn--ghost"
+                style={{ marginTop: 8 }}
+                onClick={() => setCoverPhotoUrl(null)}
+              >
+                Retirer la photo
+              </button>
+            </div>
+          )}
+          <input id="cover-photo" type="file" accept="image/*" onChange={onPickPhoto} />
         </div>
       </div>
 

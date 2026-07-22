@@ -245,6 +245,26 @@ select:focus-visible {
   gap: 6px;
   text-decoration: none;
   color: inherit;
+  padding: 0;
+  overflow: hidden;
+}
+
+.recipe-card__photo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+
+.recipe-card__title,
+.recipe-card__meta,
+.recipe-card > .macro-row {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.recipe-card > .macro-row {
+  padding-bottom: 16px;
 }
 
 .recipe-card__title {
@@ -252,6 +272,7 @@ select:focus-visible {
   font-size: 1.05rem;
   font-weight: 700;
   margin: 0;
+  padding-top: 16px;
 }
 
 .recipe-card__meta {

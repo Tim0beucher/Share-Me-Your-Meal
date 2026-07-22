@@ -25,6 +25,7 @@ export class RecipesService {
           servings,
           status: dto.publish ? 'publiee' : 'brouillon',
           visibility: 'publique',
+          cover_photo_url: dto.coverPhotoUrl ?? null,
           total_calories_kcal: totals.calories,
           total_protein_g: totals.protein,
           total_carbs_g: totals.carbs,
@@ -178,6 +179,7 @@ export class RecipesService {
           servings,
           status: 'publiee',
           visibility: dto.visibility ?? 'privee',
+          cover_photo_url: original.cover_photo_url,
           original_recipe_id: originalId,
           adaptation_type: adaptationType,
           total_calories_kcal: totals.calories,
@@ -311,6 +313,7 @@ export class RecipesService {
       visibility: string;
       original_recipe_id: string | null;
       adaptation_type: string | null;
+      cover_photo_url: string | null;
     },
     resolved: ResolvedIngredient[],
     totals: MacroTotals,
@@ -324,6 +327,7 @@ export class RecipesService {
       visibility: recipe.visibility,
       originalRecipeId: recipe.original_recipe_id,
       adaptationType: recipe.adaptation_type,
+      coverPhotoUrl: recipe.cover_photo_url,
       ingredients: resolved.map((r) => ({
         foodId: r.foodId,
         name: r.food.name,

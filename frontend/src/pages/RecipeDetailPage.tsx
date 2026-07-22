@@ -48,6 +48,13 @@ export function RecipeDetailPage() {
 
   return (
     <div>
+      {recipe.coverPhotoUrl && (
+        <img
+          src={recipe.coverPhotoUrl}
+          alt=""
+          style={{ width: '100%', maxHeight: 360, objectFit: 'cover', borderRadius: 'var(--radius)', marginBottom: 16 }}
+        />
+      )}
       <h1>{recipe.title}</h1>
       {recipe.originalRecipeId && (
         <p>

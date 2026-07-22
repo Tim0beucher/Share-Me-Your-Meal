@@ -59,6 +59,7 @@ export interface RecipeDetail {
   visibility: string;
   originalRecipeId: string | null;
   adaptationType: string | null;
+  coverPhotoUrl: string | null;
   ingredients: RecipeIngredient[];
   steps?: { step_number: number; instruction: string; photo_url: string | null }[];
   adaptedCount?: number;
