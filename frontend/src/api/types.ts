@@ -141,6 +141,14 @@ export interface FoodDiaryResponse {
   totals: { calories: number; protein: number; carbs: number; fat: number };
 }
 
+export interface NutritionSummaryBucket {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export interface Collection {
   id: string;
   name: string;

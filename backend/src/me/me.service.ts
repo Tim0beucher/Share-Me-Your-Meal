@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Kysely, sql } from 'kysely';
+import { Kysely, Selectable, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
-import { Database } from '../db/types';
+import { Database, FoodDiaryEntriesTable } from '../db/types';
 import { aggregate, resolveIngredients } from '../recipes/macro-calculator';
 import { ActivityQueryDto } from './dto/activity-query.dto';
 import { CreateFoodDiaryEntryDto } from './dto/food-diary-entry.dto';
@@ -265,15 +265,11 @@ export class MeService {
     return { deleted: true };
   }
 
-  async getFoodDiary(userId: string, date: string) {
-    const entries = await this.db
-      .selectFrom('food_diary_entries')
-      .selectAll()
-      .where('user_id', '=', userId)
-      .where('entry_date', '=', date)
-      .orderBy('created_at', 'asc')
-      .execute();
-
+  // Résout les macros de chaque entrée de journal (recette au prorata des
+  // portions consommées, ou aliment via resolveIngredients/aggregate comme
+  // pour une recette classique). Partagé entre getFoodDiary (le détail d'un
+  // jour) et getNutritionSummary (les totaux agrégés par période).
+  private async resolveDiaryEntries(entries: Selectable<FoodDiaryEntriesTable>[]) {
     const recipeIds = [...new Set(entries.filter((e) => e.recipe_id).map((e) => e.recipe_id!))];
     const recipesById = new Map(
       recipeIds.length
@@ -296,8 +292,7 @@ export class MeService {
       : [];
     const resolvedByEntryId = new Map(foodEntries.map((e, i) => [e.id, resolvedFoods[i]] as const));
 
-    const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-    const items = entries
+    return entries
       .map((e) => {
         if (e.recipe_id) {
           const recipe = recipesById.get(e.recipe_id);
@@ -309,15 +304,12 @@ export class MeService {
             carbs: round(recipe.total_carbs_g * factor),
             fat: round(recipe.total_fat_g * factor),
           };
-          totals.calories += macros.calories;
-          totals.protein += macros.protein;
-          totals.carbs += macros.carbs;
-          totals.fat += macros.fat;
           return {
             id: e.id,
+            entryDate: e.entry_date,
             meal: e.meal,
             label: recipe.title,
-            servingsConsumed: e.servings_consumed,
+            servingsConsumed: e.servings_consumed ?? undefined,
             macros,
           };
         }
@@ -325,24 +317,41 @@ export class MeService {
         const resolved = resolvedByEntryId.get(e.id);
         if (!resolved) return null;
         const agg = aggregate([resolved]);
-        totals.calories += agg.calories;
-        totals.protein += agg.protein;
-        totals.carbs += agg.carbs;
-        totals.fat += agg.fat;
         return {
           id: e.id,
+          entryDate: e.entry_date,
           meal: e.meal,
           label: resolved.food.name,
-          quantity: e.quantity,
-          unit: e.unit,
+          quantity: e.quantity ?? undefined,
+          unit: e.unit ?? undefined,
           macros: { calories: agg.calories, protein: agg.protein, carbs: agg.carbs, fat: agg.fat },
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
+  }
+
+  async getFoodDiary(userId: string, date: string) {
+    const entries = await this.db
+      .selectFrom('food_diary_entries')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .where('entry_date', '=', date)
+      .orderBy('created_at', 'asc')
+      .execute();
+
+    const items = await this.resolveDiaryEntries(entries);
+
+    const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    for (const item of items) {
+      totals.calories += item.macros.calories;
+      totals.protein += item.macros.protein;
+      totals.carbs += item.macros.carbs;
+      totals.fat += item.macros.fat;
+    }
 
     return {
       date,
-      entries: items,
+      entries: items.map(({ entryDate, ...rest }) => rest),
       totals: {
         calories: round(totals.calories),
         protein: round(totals.protein),
@@ -351,4 +360,98 @@ export class MeService {
       },
     };
   }
+
+  // Récapitulatif des macros consommées, agrégées par jour, semaine ou mois
+  // sur les `count` dernières périodes. `today` (date locale du client) sert
+  // d'ancre pour construire les périodes, afin de rester cohérent avec le
+  // "aujourd'hui" du journal alimentaire (voir getFoodDiary).
+  async getNutritionSummary(userId: string, granularity: SummaryGranularity, count: number, today?: string) {
+    const todayStr = today ?? new Date().toISOString().slice(0, 10);
+    const buckets = buildSummaryBuckets(granularity, count, todayStr);
+    const rangeStart = buckets[0].start;
+
+    const entries = await this.db
+      .selectFrom('food_diary_entries')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .where('entry_date', '>=', rangeStart)
+      .where('entry_date', '<=', todayStr)
+      .execute();
+
+    const items = await this.resolveDiaryEntries(entries);
+
+    const sums = new Map(buckets.map((b) => [b.key, { calories: 0, protein: 0, carbs: 0, fat: 0 }]));
+    for (const item of items) {
+      const key = bucketKeyFor(item.entryDate, granularity);
+      const sum = sums.get(key);
+      if (!sum) continue; // hors de la fenêtre demandée (ne devrait pas arriver vu le filtre SQL)
+      sum.calories += item.macros.calories;
+      sum.protein += item.macros.protein;
+      sum.carbs += item.macros.carbs;
+      sum.fat += item.macros.fat;
+    }
+
+    return buckets.map((b) => {
+      const sum = sums.get(b.key)!;
+      return {
+        date: b.start,
+        calories: round(sum.calories),
+        protein: round(sum.protein),
+        carbs: round(sum.carbs),
+        fat: round(sum.fat),
+      };
+    });
+  }
+}
+
+type SummaryGranularity = 'day' | 'week' | 'month';
+
+function addDaysToDateStr(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function mondayOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const day = d.getUTCDay(); // 0 = dimanche .. 6 = samedi
+  const diff = (day === 0 ? -6 : 1) - day;
+  return addDaysToDateStr(dateStr, diff);
+}
+
+function monthKeyOf(dateStr: string): string {
+  return dateStr.slice(0, 7); // AAAA-MM
+}
+
+function bucketKeyFor(dateStr: string, granularity: SummaryGranularity): string {
+  if (granularity === 'day') return dateStr;
+  if (granularity === 'week') return mondayOf(dateStr);
+  return monthKeyOf(dateStr);
+}
+
+function buildSummaryBuckets(
+  granularity: SummaryGranularity,
+  count: number,
+  todayStr: string,
+): { key: string; start: string }[] {
+  if (granularity === 'day') {
+    return Array.from({ length: count }, (_, i) => {
+      const start = addDaysToDateStr(todayStr, -(count - 1 - i));
+      return { key: start, start };
+    });
+  }
+  if (granularity === 'week') {
+    const thisMonday = mondayOf(todayStr);
+    return Array.from({ length: count }, (_, i) => {
+      const start = addDaysToDateStr(thisMonday, -(count - 1 - i) * 7);
+      return { key: start, start };
+    });
+  }
+  const [year, month] = todayStr.split('-').map(Number);
+  return Array.from({ length: count }, (_, i) => {
+    const offset = count - 1 - i;
+    const d = new Date(Date.UTC(year, month - 1 - offset, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { key, start: `${key}-01` };
+  });
 }

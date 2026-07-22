@@ -1,7 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
-import { ActivityBucket, Collection, FeedItem, FoodDiaryResponse, FoodSearchResult, RecipeSummary, UserProfile } from '../api/types';
+import {
+  ActivityBucket,
+  Collection,
+  FeedItem,
+  FoodDiaryResponse,
+  FoodSearchResult,
+  NutritionSummaryBucket,
+  RecipeSummary,
+  UserProfile,
+} from '../api/types';
 import { ActivityChart } from '../components/ActivityChart';
 import { FoodSearch } from '../components/FoodSearch';
 import { RecipeSearch } from '../components/RecipeSearch';
@@ -26,8 +35,27 @@ const MEAL_LABELS: Record<string, string> = {
   post_entrainement: 'Post-entraînement',
 };
 
-const TABS = ["Aujourd'hui", 'Infos', 'Mes recettes', 'Aimées', 'Enregistrées', 'Playlists', 'Activité'] as const;
+const TABS = [
+  "Aujourd'hui",
+  'Récapitulatif',
+  'Infos',
+  'Mes recettes',
+  'Aimées',
+  'Enregistrées',
+  'Playlists',
+  'Activité',
+] as const;
 type Tab = (typeof TABS)[number];
+
+const SUMMARY_DAY_FORMAT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' });
+const SUMMARY_MONTH_FORMAT = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
+
+function summaryLabel(dateStr: string, granularity: 'day' | 'week' | 'month'): string {
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (granularity === 'month') return SUMMARY_MONTH_FORMAT.format(date);
+  if (granularity === 'week') return `Semaine du ${SUMMARY_DAY_FORMAT.format(date)}`;
+  return SUMMARY_DAY_FORMAT.format(date);
+}
 
 function RecipeSummaryRow({ recipe }: { recipe: RecipeSummary }) {
   return (
@@ -55,6 +83,9 @@ export function ProfilePage() {
   const [pendingRecipe, setPendingRecipe] = useState<{ recipe: FeedItem; servings: number } | null>(null);
   const [logSaving, setLogSaving] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
+  const [summaryGranularity, setSummaryGranularity] = useState<'day' | 'week' | 'month'>('day');
+  const [summaryCount, setSummaryCount] = useState(7);
+  const [summary, setSummary] = useState<NutritionSummaryBucket[] | null>(null);
   const [myRecipes, setMyRecipes] = useState<RecipeSummary[] | null>(null);
   const [liked, setLiked] = useState<RecipeSummary[] | null>(null);
   const [saved, setSaved] = useState<RecipeSummary[] | null>(null);
@@ -77,6 +108,20 @@ export function ProfilePage() {
 
   const loadFoodDiary = (date: string) => {
     api.get<FoodDiaryResponse>(`/me/food-diary?date=${date}`).then(setFoodDiary);
+  };
+
+  useEffect(() => {
+    const today = todayLocalISO();
+    api
+      .get<NutritionSummaryBucket[]>(
+        `/me/nutrition-summary?granularity=${summaryGranularity}&count=${summaryCount}&today=${today}`,
+      )
+      .then(setSummary);
+  }, [summaryGranularity, summaryCount]);
+
+  const selectSummaryRange = (g: 'day' | 'week' | 'month', c: number) => {
+    setSummaryGranularity(g);
+    setSummaryCount(c);
   };
 
   useEffect(() => {
@@ -330,6 +375,70 @@ export function ProfilePage() {
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'Récapitulatif' && (
+        <div className="card">
+          <div className="macro-row" style={{ marginBottom: 16 }}>
+            <button
+              className={summaryGranularity === 'day' && summaryCount === 7 ? 'btn' : 'btn btn--ghost'}
+              onClick={() => selectSummaryRange('day', 7)}
+            >
+              7 derniers jours
+            </button>
+            <button
+              className={summaryGranularity === 'day' && summaryCount === 30 ? 'btn' : 'btn btn--ghost'}
+              onClick={() => selectSummaryRange('day', 30)}
+            >
+              30 derniers jours
+            </button>
+            <button
+              className={summaryGranularity === 'week' && summaryCount === 12 ? 'btn' : 'btn btn--ghost'}
+              onClick={() => selectSummaryRange('week', 12)}
+            >
+              12 dernières semaines
+            </button>
+            <button
+              className={summaryGranularity === 'month' && summaryCount === 12 ? 'btn' : 'btn btn--ghost'}
+              onClick={() => selectSummaryRange('month', 12)}
+            >
+              12 derniers mois
+            </button>
+          </div>
+
+          {summary === null ? (
+            <p>Chargement...</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontVariantNumeric: 'tabular-nums' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'right' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>
+                      Période
+                    </th>
+                    <th style={{ padding: '6px 8px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Kcal</th>
+                    <th style={{ padding: '6px 8px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Protéines</th>
+                    <th style={{ padding: '6px 8px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Glucides</th>
+                    <th style={{ padding: '6px 8px', color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>Lipides</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...summary]
+                    .reverse()
+                    .map((bucket) => (
+                      <tr key={bucket.date} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '6px 8px' }}>{summaryLabel(bucket.date, summaryGranularity)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{bucket.calories}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{bucket.protein} g</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{bucket.carbs} g</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{bucket.fat} g</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
