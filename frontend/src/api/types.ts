@@ -52,6 +52,7 @@ export interface RecipeIngredient {
 
 export interface RecipeDetail {
   id: string;
+  authorId: string;
   title: string;
   description: string | null;
   servings: number;

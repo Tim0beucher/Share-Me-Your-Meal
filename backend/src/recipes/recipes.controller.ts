@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { CurrentUser } from '../auth/current-user.decorator';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser, CurrentUserOptional } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { AdaptRecipeDto } from './dto/adapt-recipe.dto';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { RecipesService } from './recipes.service';
@@ -25,15 +26,22 @@ export class RecipesController {
     });
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
-  getRecipe(@Param('id') id: string) {
-    return this.recipes.getRecipe(id);
+  getRecipe(@Param('id') id: string, @CurrentUserOptional() userId?: string) {
+    return this.recipes.getRecipe(id, userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post()
   createRecipe(@CurrentUser() userId: string, @Body() dto: CreateRecipeDto) {
     return this.recipes.createRecipe(userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  updateRecipe(@CurrentUser() userId: string, @Param('id') id: string, @Body() dto: CreateRecipeDto) {
+    return this.recipes.updateRecipe(userId, id, dto);
   }
 
   @UseGuards(JwtAuthGuard)

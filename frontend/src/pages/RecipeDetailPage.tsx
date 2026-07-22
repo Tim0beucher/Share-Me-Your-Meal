@@ -67,7 +67,7 @@ export function RecipeDetailPage() {
         {recipe.adaptedCount !== undefined && recipe.adaptedCount > 0 && ` · adaptée ${recipe.adaptedCount} fois`}
       </p>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <button className="btn" onClick={() => (user ? setShowAdapt(true) : navigate('/login'))}>
           Adapter la recette
         </button>
@@ -77,6 +77,11 @@ export function RecipeDetailPage() {
         <button className="btn btn--ghost" onClick={markCooked} disabled={cookedJustNow}>
           {cookedJustNow ? '✅ Cuisinée aujourd\'hui' : '🍳 J\'ai cuisiné ça'}
         </button>
+        {user?.id === recipe.authorId && (
+          <Link to={`/recipes/${recipe.id}/edit`} className="btn btn--ghost">
+            Modifier
+          </Link>
+        )}
       </div>
 
       <div className="card">

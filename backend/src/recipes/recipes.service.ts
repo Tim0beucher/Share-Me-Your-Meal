@@ -53,9 +53,65 @@ export class RecipesService {
     });
   }
 
-  async getRecipe(id: string) {
+  async updateRecipe(userId: string, recipeId: string, dto: CreateRecipeDto) {
+    return this.db.transaction().execute(async (trx) => {
+      const existing = await trx
+        .selectFrom('recipes')
+        .selectAll()
+        .where('id', '=', recipeId)
+        .executeTakeFirst();
+      if (!existing || existing.deleted_at) {
+        throw new NotFoundException('Recette introuvable.');
+      }
+      if (existing.author_id !== userId) {
+        throw new ForbiddenException('Vous ne pouvez modifier que vos propres recettes.');
+      }
+
+      const resolved = await resolveIngredients(trx, dto.ingredients);
+      const totals = aggregate(resolved);
+      const servings = dto.servings ?? existing.servings;
+
+      const updated = await trx
+        .updateTable('recipes')
+        .set({
+          title: dto.title,
+          description: dto.description ?? null,
+          servings,
+          status: dto.publish ? 'publiee' : existing.status,
+          cover_photo_url: dto.coverPhotoUrl ?? existing.cover_photo_url,
+          total_calories_kcal: totals.calories,
+          total_protein_g: totals.protein,
+          total_carbs_g: totals.carbs,
+          total_fat_g: totals.fat,
+          total_fiber_g: totals.fiber,
+          total_sugar_g: totals.sugar,
+          total_saturated_fat_g: totals.saturatedFat,
+          total_salt_g: totals.salt,
+          published_at: dto.publish && !existing.published_at ? new Date() : existing.published_at,
+          updated_at: new Date(),
+        })
+        .where('id', '=', recipeId)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      await trx.deleteFrom('recipe_ingredients').where('recipe_id', '=', recipeId).execute();
+      await this.insertIngredients(trx, recipeId, resolved);
+
+      await trx.deleteFrom('recipe_steps').where('recipe_id', '=', recipeId).execute();
+      if (dto.steps?.length) await this.insertSteps(trx, recipeId, dto.steps);
+
+      return this.toResponse(updated, resolved, totals);
+    });
+  }
+
+  async getRecipe(id: string, requesterId?: string) {
     const recipe = await this.db.selectFrom('recipes').selectAll().where('id', '=', id).executeTakeFirst();
     if (!recipe || recipe.deleted_at) {
+      throw new NotFoundException('Recette introuvable.');
+    }
+    // Une recette privée n'est visible que par son auteur (message générique
+    // pour ne pas révéler à un tiers qu'une recette privée existe à cet id).
+    if (recipe.visibility === 'privee' && recipe.author_id !== requesterId) {
       throw new NotFoundException('Recette introuvable.');
     }
 
@@ -321,6 +377,7 @@ export class RecipesService {
   private toResponse(
     recipe: {
       id: string;
+      author_id: string;
       title: string;
       description: string | null;
       servings: number;
@@ -335,6 +392,7 @@ export class RecipesService {
   ) {
     return {
       id: recipe.id,
+      authorId: recipe.author_id,
       title: recipe.title,
       description: recipe.description,
       servings: recipe.servings,

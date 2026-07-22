@@ -4,6 +4,7 @@ import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAuth } from './auth/RequireAuth';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CreateRecipePage } from './pages/CreateRecipePage';
+import { EditRecipePage } from './pages/EditRecipePage';
 import { FeedPage } from './pages/FeedPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LegalNoticePage } from './pages/LegalNoticePage';
@@ -31,6 +32,14 @@ export function App() {
           element={
             <RequireAuth>
               <CreateRecipePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/recipes/:id/edit"
+          element={
+            <RequireAuth>
+              <EditRecipePage />
             </RequireAuth>
           }
         />
