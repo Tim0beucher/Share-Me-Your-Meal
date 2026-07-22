@@ -137,14 +137,22 @@ export function RecipeForm({
 
   const removeStep = (index: number) => setSteps((prev) => prev.filter((_, i) => i !== index));
 
+  const showError = (message: string) => {
+    setError(message);
+    // Le formulaire peut être long : sans ça, une erreur déclenchée en
+    // cliquant sur un bouton tout en bas (hors écran par rapport au bandeau
+    // du haut) passerait inaperçue.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const runAction = async (action: RecipeFormAction) => {
     setError(null);
     if (!title.trim()) {
-      setError('Le titre est obligatoire.');
+      showError('Le titre est obligatoire.');
       return;
     }
     if (ingredients.length === 0) {
-      setError('Ajoutez au moins un ingrédient.');
+      showError('Ajoutez au moins un ingrédient.');
       return;
     }
     setSaving(action);
@@ -163,7 +171,7 @@ export function RecipeForm({
         action.publish,
       );
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
+      showError(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
     } finally {
       setSaving(null);
     }
@@ -303,6 +311,8 @@ export function RecipeForm({
           + Ajouter une étape
         </button>
       </div>
+
+      {error && <div className="error-banner">{error}</div>}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {actions.map((action) => (
