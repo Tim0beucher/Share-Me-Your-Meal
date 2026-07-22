@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Kysely, Transaction } from 'kysely';
+import { Kysely, Transaction, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
 import { AdaptationType, Database } from '../db/types';
 import { AdaptRecipeDto } from './dto/adapt-recipe.dto';
@@ -88,7 +88,7 @@ export class RecipesService {
           total_saturated_fat_g: totals.saturatedFat,
           total_salt_g: totals.salt,
           published_at: dto.publish && !existing.published_at ? new Date() : existing.published_at,
-          updated_at: new Date(),
+          updated_at: sql`now()`,
         })
         .where('id', '=', recipeId)
         .returningAll()
