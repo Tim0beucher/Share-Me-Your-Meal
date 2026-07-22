@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { ApiError, api } from '../api/client';
 import { AdminReport, AdminStats, AdminUser } from '../api/types';
 import { LineChart, LineChartPoint } from '../components/LineChart';
 
@@ -71,6 +71,7 @@ export function AdminDashboardPage() {
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null);
   const [period, setPeriod] = useState<Period>('14d');
   const [chartData, setChartData] = useState<LineChartPoint[] | null>(null);
+  const [chartError, setChartError] = useState<string | null>(null);
 
   const loadAll = () => {
     api.get<AdminStats>('/admin/stats').then(setStats);
@@ -83,9 +84,11 @@ export function AdminDashboardPage() {
   useEffect(() => {
     if (!selectedMetric) return;
     setChartData(null);
+    setChartError(null);
     api
       .get<LineChartPoint[]>(`/admin/stats/timeseries?metric=${METRIC_TO_API[selectedMetric]}&period=${period}`)
-      .then(setChartData);
+      .then(setChartData)
+      .catch((err) => setChartError(err instanceof ApiError ? err.message : 'Impossible de charger ce graphique.'));
   }, [selectedMetric, period]);
 
   const selectMetric = (metric: Metric) => {
@@ -159,7 +162,9 @@ export function AdminDashboardPage() {
               ))}
             </select>
           </div>
-          {chartData === null ? (
+          {chartError ? (
+            <div className="error-banner">{chartError}</div>
+          ) : chartData === null ? (
             <p>Chargement...</p>
           ) : (
             <LineChart points={chartData} label={METRIC_LABELS[selectedMetric]} granularity={PERIOD_GRANULARITY[period]} />
