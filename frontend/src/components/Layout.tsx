@@ -9,7 +9,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <>
       <nav className="nav">
         <Link to="/" className="nav__brand">
-          Recette
+          <span>Share Me</span>
+          <span>
+            Your Meal
+            <span className="nav__brand-dot" />
+          </span>
         </Link>
         <div className="nav__links">
           {user ? (

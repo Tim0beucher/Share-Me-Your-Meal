@@ -102,17 +102,18 @@ a {
 .nav__brand {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1.25;
   text-decoration: none;
   color: var(--color-text);
   letter-spacing: 0.02em;
   white-space: nowrap;
   display: inline-flex;
-  align-items: center;
+  flex-direction: column;
 }
 
-.nav__brand::after {
-  content: "";
+.nav__brand-dot {
+  display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
