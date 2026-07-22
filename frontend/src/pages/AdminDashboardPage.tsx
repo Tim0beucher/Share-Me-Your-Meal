@@ -133,7 +133,8 @@ export function AdminDashboardPage() {
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--color-border)' }}
             >
               <span>
-                <strong>{u.pseudo}</strong> · {u.email} · {u.role}
+                <strong>{u.pseudo}</strong> · {u.email} · {u.role} · inscrit le{' '}
+                {DATE_FORMAT.format(new Date(u.created_at))}
                 {u.deleted_at && <span style={{ color: 'var(--color-down)' }}> · banni</span>}
               </span>
               <button className="btn btn--ghost" onClick={() => toggleBan(u)}>
