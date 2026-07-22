@@ -1,9 +1,13 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
 import { Database } from '../db/types';
+import { aggregate, resolveIngredients } from '../recipes/macro-calculator';
 import { ActivityQueryDto } from './dto/activity-query.dto';
+import { CreateFoodDiaryEntryDto } from './dto/food-diary-entry.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+
+const round = (n: number) => Math.round(n * 100) / 100;
 
 const RECIPE_SUMMARY_COLUMNS = [
   'recipes.id',
@@ -215,5 +219,136 @@ export class MeService {
     `.execute(this.db);
 
     return rows.rows.map((r) => ({ date: r.bucket_start, count: Number(r.count) }));
+  }
+
+  // "Aujourd'hui" est déterminé côté client (date locale de l'utilisateur,
+  // passée en paramètre) plutôt que côté serveur : ça évite tout décalage
+  // entre le fuseau du serveur et celui de l'utilisateur pour le "minuit"
+  // auquel le compteur du jour doit repartir de zéro.
+  async addFoodDiaryEntry(userId: string, dto: CreateFoodDiaryEntryDto) {
+    const isRecipe = !!dto.recipeId;
+    const isFood = !!dto.foodId;
+    if (isRecipe === isFood) {
+      throw new BadRequestException('Indiquez soit une recette, soit un aliment (pas les deux).');
+    }
+    if (isRecipe && !dto.servingsConsumed) {
+      throw new BadRequestException('Indiquez le nombre de portions consommées.');
+    }
+    if (isFood && !dto.quantity) {
+      throw new BadRequestException('Indiquez la quantité consommée.');
+    }
+
+    return this.db
+      .insertInto('food_diary_entries')
+      .values({
+        user_id: userId,
+        entry_date: dto.date,
+        meal: dto.meal,
+        recipe_id: dto.recipeId ?? null,
+        servings_consumed: dto.servingsConsumed ?? null,
+        food_id: dto.foodId ?? null,
+        quantity: dto.quantity ?? null,
+        unit: isFood ? (dto.unit ?? 'gramme') : null,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+  }
+
+  async deleteFoodDiaryEntry(userId: string, id: string) {
+    const result = await this.db
+      .deleteFrom('food_diary_entries')
+      .where('id', '=', id)
+      .where('user_id', '=', userId)
+      .returning('id')
+      .executeTakeFirst();
+    if (!result) throw new NotFoundException('Entrée introuvable.');
+    return { deleted: true };
+  }
+
+  async getFoodDiary(userId: string, date: string) {
+    const entries = await this.db
+      .selectFrom('food_diary_entries')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .where('entry_date', '=', date)
+      .orderBy('created_at', 'asc')
+      .execute();
+
+    const recipeIds = [...new Set(entries.filter((e) => e.recipe_id).map((e) => e.recipe_id!))];
+    const recipesById = new Map(
+      recipeIds.length
+        ? (
+            await this.db
+              .selectFrom('recipes')
+              .select(['id', 'title', 'servings', 'total_calories_kcal', 'total_protein_g', 'total_carbs_g', 'total_fat_g'])
+              .where('id', 'in', recipeIds)
+              .execute()
+          ).map((r) => [r.id, r] as const)
+        : [],
+    );
+
+    const foodEntries = entries.filter((e) => e.food_id);
+    const resolvedFoods = foodEntries.length
+      ? await resolveIngredients(
+          this.db,
+          foodEntries.map((e) => ({ foodId: e.food_id!, quantity: e.quantity!, unit: e.unit! })),
+        )
+      : [];
+    const resolvedByEntryId = new Map(foodEntries.map((e, i) => [e.id, resolvedFoods[i]] as const));
+
+    const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    const items = entries
+      .map((e) => {
+        if (e.recipe_id) {
+          const recipe = recipesById.get(e.recipe_id);
+          if (!recipe) return null; // recette supprimée depuis la journalisation
+          const factor = (e.servings_consumed ?? 0) / recipe.servings;
+          const macros = {
+            calories: round(recipe.total_calories_kcal * factor),
+            protein: round(recipe.total_protein_g * factor),
+            carbs: round(recipe.total_carbs_g * factor),
+            fat: round(recipe.total_fat_g * factor),
+          };
+          totals.calories += macros.calories;
+          totals.protein += macros.protein;
+          totals.carbs += macros.carbs;
+          totals.fat += macros.fat;
+          return {
+            id: e.id,
+            meal: e.meal,
+            label: recipe.title,
+            servingsConsumed: e.servings_consumed,
+            macros,
+          };
+        }
+
+        const resolved = resolvedByEntryId.get(e.id);
+        if (!resolved) return null;
+        const agg = aggregate([resolved]);
+        totals.calories += agg.calories;
+        totals.protein += agg.protein;
+        totals.carbs += agg.carbs;
+        totals.fat += agg.fat;
+        return {
+          id: e.id,
+          meal: e.meal,
+          label: resolved.food.name,
+          quantity: e.quantity,
+          unit: e.unit,
+          macros: { calories: agg.calories, protein: agg.protein, carbs: agg.carbs, fat: agg.fat },
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    return {
+      date,
+      entries: items,
+      totals: {
+        calories: round(totals.calories),
+        protein: round(totals.protein),
+        carbs: round(totals.carbs),
+        fat: round(totals.fat),
+      },
+    };
   }
 }

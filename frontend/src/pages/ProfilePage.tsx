@@ -1,8 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
-import { ActivityBucket, Collection, RecipeSummary, UserProfile } from '../api/types';
+import { ActivityBucket, Collection, FeedItem, FoodDiaryResponse, FoodSearchResult, RecipeSummary, UserProfile } from '../api/types';
 import { ActivityChart } from '../components/ActivityChart';
+import { FoodSearch } from '../components/FoodSearch';
+import { RecipeSearch } from '../components/RecipeSearch';
+import { RingChart } from '../components/RingChart';
+import { todayLocalISO } from '../lib/date';
 import { applyAccent } from '../theme';
 
 const NUTRITION_GOAL_LABELS: Record<string, string> = {
@@ -13,7 +17,16 @@ const NUTRITION_GOAL_LABELS: Record<string, string> = {
   performance_sportive: 'Performance sportive',
 };
 
-const TABS = ['Infos', 'Mes recettes', 'Aimées', 'Enregistrées', 'Playlists', 'Activité'] as const;
+const MEAL_LABELS: Record<string, string> = {
+  petit_dejeuner: 'Petit-déjeuner',
+  dejeuner: 'Déjeuner',
+  diner: 'Dîner',
+  collation: 'Collation',
+  dessert: 'Dessert',
+  post_entrainement: 'Post-entraînement',
+};
+
+const TABS = ["Aujourd'hui", 'Infos', 'Mes recettes', 'Aimées', 'Enregistrées', 'Playlists', 'Activité'] as const;
 type Tab = (typeof TABS)[number];
 
 function RecipeSummaryRow({ recipe }: { recipe: RecipeSummary }) {
@@ -32,8 +45,16 @@ function RecipeSummaryRow({ recipe }: { recipe: RecipeSummary }) {
 }
 
 export function ProfilePage() {
-  const [tab, setTab] = useState<Tab>('Infos');
+  const [tab, setTab] = useState<Tab>("Aujourd'hui");
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [diaryDate, setDiaryDate] = useState(todayLocalISO());
+  const [foodDiary, setFoodDiary] = useState<FoodDiaryResponse | null>(null);
+  const [logMode, setLogMode] = useState<'food' | 'recipe'>('food');
+  const [logMeal, setLogMeal] = useState('dejeuner');
+  const [pendingFood, setPendingFood] = useState<{ food: FoodSearchResult; quantity: number } | null>(null);
+  const [pendingRecipe, setPendingRecipe] = useState<{ recipe: FeedItem; servings: number } | null>(null);
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
   const [myRecipes, setMyRecipes] = useState<RecipeSummary[] | null>(null);
   const [liked, setLiked] = useState<RecipeSummary[] | null>(null);
   const [saved, setSaved] = useState<RecipeSummary[] | null>(null);
@@ -53,6 +74,71 @@ export function ProfilePage() {
     api.get<RecipeSummary[]>('/me/saved-recipes').then(setSaved);
     api.get<Collection[]>('/me/collections').then(setCollections);
   }, []);
+
+  const loadFoodDiary = (date: string) => {
+    api.get<FoodDiaryResponse>(`/me/food-diary?date=${date}`).then(setFoodDiary);
+  };
+
+  useEffect(() => {
+    loadFoodDiary(diaryDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diaryDate]);
+
+  // Repasse à zéro sans avoir à recharger la page si minuit sonne pendant
+  // que l'onglet reste ouvert : on compare régulièrement la date locale.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = todayLocalISO();
+      setDiaryDate((prev) => (prev !== now ? now : prev));
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const addFoodEntry = async () => {
+    if (!pendingFood) return;
+    setLogSaving(true);
+    setLogError(null);
+    try {
+      await api.post('/me/food-diary', {
+        date: diaryDate,
+        meal: logMeal,
+        foodId: pendingFood.food.id,
+        quantity: pendingFood.quantity,
+        unit: 'gramme',
+      });
+      setPendingFood(null);
+      loadFoodDiary(diaryDate);
+    } catch (err) {
+      setLogError(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setLogSaving(false);
+    }
+  };
+
+  const addRecipeEntry = async () => {
+    if (!pendingRecipe) return;
+    setLogSaving(true);
+    setLogError(null);
+    try {
+      await api.post('/me/food-diary', {
+        date: diaryDate,
+        meal: logMeal,
+        recipeId: pendingRecipe.recipe.id,
+        servingsConsumed: pendingRecipe.servings,
+      });
+      setPendingRecipe(null);
+      loadFoodDiary(diaryDate);
+    } catch (err) {
+      setLogError(err instanceof ApiError ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setLogSaving(false);
+    }
+  };
+
+  const deleteDiaryEntry = async (id: string) => {
+    await api.delete(`/me/food-diary/${id}`);
+    loadFoodDiary(diaryDate);
+  };
 
   useEffect(() => {
     api.get<ActivityBucket[]>(`/me/activity?granularity=${granularity}&count=${count}`).then(setActivity);
@@ -131,6 +217,121 @@ export function ProfilePage() {
           </button>
         ))}
       </div>
+
+      {tab === "Aujourd'hui" && (
+        <div>
+          <div className="card" style={{ display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
+            <RingChart
+              value={foodDiary?.totals.calories ?? 0}
+              target={profile.nutritionTarget?.daily_calories_target ?? null}
+              label="Calories"
+              unit=" kcal"
+            />
+            <RingChart
+              value={foodDiary?.totals.protein ?? 0}
+              target={profile.nutritionTarget?.daily_protein_g_target ?? null}
+              label="Protéines"
+              unit=" g"
+            />
+          </div>
+          {!profile.nutritionTarget?.daily_calories_target && !profile.nutritionTarget?.daily_protein_g_target && (
+            <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+              Définis tes objectifs quotidiens dans l'onglet "Infos" pour suivre ta progression.
+            </p>
+          )}
+
+          <div className="card">
+            <h2>Ajouter une entrée</h2>
+            {logError && <div className="error-banner">{logError}</div>}
+            <div className="macro-row" style={{ marginBottom: 14 }}>
+              <button className={logMode === 'food' ? 'btn' : 'btn btn--ghost'} onClick={() => setLogMode('food')}>
+                Aliment
+              </button>
+              <button className={logMode === 'recipe' ? 'btn' : 'btn btn--ghost'} onClick={() => setLogMode('recipe')}>
+                Une de mes recettes
+              </button>
+            </div>
+            <div className="field">
+              <label htmlFor="logMeal">Repas</label>
+              <select id="logMeal" value={logMeal} onChange={(e) => setLogMeal(e.target.value)}>
+                {Object.entries(MEAL_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {logMode === 'food' ? (
+              <>
+                <FoodSearch onPick={(food) => setPendingFood({ food, quantity: 100 })} />
+                {pendingFood && (
+                  <div className="ingredient-row">
+                    <span className="ingredient-row__name">{pendingFood.food.name}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={pendingFood.quantity}
+                      onChange={(e) => setPendingFood({ ...pendingFood, quantity: Number(e.target.value) })}
+                    />
+                    <span>g</span>
+                    <button className="btn" onClick={addFoodEntry} disabled={logSaving}>
+                      {logSaving ? 'Ajout...' : 'Ajouter'}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <RecipeSearch onPick={(recipe) => setPendingRecipe({ recipe, servings: 1 })} />
+                {pendingRecipe && (
+                  <div className="ingredient-row">
+                    <span className="ingredient-row__name">{pendingRecipe.recipe.title}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={pendingRecipe.servings}
+                      onChange={(e) => setPendingRecipe({ ...pendingRecipe, servings: Number(e.target.value) })}
+                    />
+                    <span>portion(s)</span>
+                    <button className="btn" onClick={addRecipeEntry} disabled={logSaving}>
+                      {logSaving ? 'Ajout...' : 'Ajouter'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="card">
+            <h2>Entrées du jour</h2>
+            {foodDiary === null ? (
+              <p>Chargement...</p>
+            ) : foodDiary.entries.length === 0 ? (
+              <p className="empty-state">Rien d'enregistré aujourd'hui.</p>
+            ) : (
+              foodDiary.entries.map((entry) => (
+                <div key={entry.id} className="ingredient-row">
+                  <span className="ingredient-row__name">
+                    {MEAL_LABELS[entry.meal] ?? entry.meal} — {entry.label}
+                    {entry.servingsConsumed
+                      ? ` (${entry.servingsConsumed} portion${entry.servingsConsumed > 1 ? 's' : ''})`
+                      : entry.quantity
+                        ? ` (${entry.quantity} g)`
+                        : ''}
+                  </span>
+                  <span className="macro-pill">{entry.macros.calories} kcal</span>
+                  <span className="macro-pill">{entry.macros.protein} g prot.</span>
+                  <button className="btn btn--ghost" onClick={() => deleteDiaryEntry(entry.id)}>
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {tab === 'Infos' && (
         <>

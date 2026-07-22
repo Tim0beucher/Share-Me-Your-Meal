@@ -213,6 +213,19 @@ export interface RecipeCookEventsTable {
   cooked_at: Generated<Timestamp>;
 }
 
+export interface FoodDiaryEntriesTable {
+  id: Generated<string>;
+  user_id: string;
+  entry_date: string;
+  meal: string;
+  recipe_id: string | null;
+  servings_consumed: number | null;
+  food_id: string | null;
+  quantity: number | null;
+  unit: MeasurementUnit | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface Database {
   users: UsersTable;
   user_nutrition_targets: UserNutritionTargetsTable;
@@ -229,4 +242,5 @@ export interface Database {
   comments: CommentsTable;
   reports: ReportsTable;
   password_reset_tokens: PasswordResetTokensTable;
+  food_diary_entries: FoodDiaryEntriesTable;
 }

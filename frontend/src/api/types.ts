@@ -125,6 +125,22 @@ export interface UserProfile {
   nutritionTarget: NutritionTarget | null;
 }
 
+export interface FoodDiaryItem {
+  id: string;
+  meal: string;
+  label: string;
+  servingsConsumed?: number;
+  quantity?: number;
+  unit?: MeasurementUnit;
+  macros: { calories: number; protein: number; carbs: number; fat: number };
+}
+
+export interface FoodDiaryResponse {
+  date: string;
+  entries: FoodDiaryItem[];
+  totals: { calories: number; protein: number; carbs: number; fat: number };
+}
+
 export interface Collection {
   id: string;
   name: string;

@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ActivityQueryDto } from './dto/activity-query.dto';
 import { CreateCollectionDto } from './dto/create-collection.dto';
+import { CreateFoodDiaryEntryDto, FoodDiaryQueryDto } from './dto/food-diary-entry.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MeService } from './me.service';
 
@@ -64,5 +65,20 @@ export class MeController {
   @Get('activity')
   activity(@CurrentUser() userId: string, @Query() query: ActivityQueryDto) {
     return this.me.activity(userId, query);
+  }
+
+  @Get('food-diary')
+  getFoodDiary(@CurrentUser() userId: string, @Query() query: FoodDiaryQueryDto) {
+    return this.me.getFoodDiary(userId, query.date);
+  }
+
+  @Post('food-diary')
+  addFoodDiaryEntry(@CurrentUser() userId: string, @Body() dto: CreateFoodDiaryEntryDto) {
+    return this.me.addFoodDiaryEntry(userId, dto);
+  }
+
+  @Delete('food-diary/:id')
+  deleteFoodDiaryEntry(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.me.deleteFoodDiaryEntry(userId, id);
   }
 }
