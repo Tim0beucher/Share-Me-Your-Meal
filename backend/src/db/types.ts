@@ -176,6 +176,15 @@ export interface CommentsTable {
   deleted_at: Timestamp | null;
 }
 
+export interface PasswordResetTokensTable {
+  id: Generated<string>;
+  user_id: string;
+  token_hash: string;
+  expires_at: Timestamp;
+  used_at: Timestamp | null;
+  created_at: Generated<Timestamp>;
+}
+
 export interface FoodUnitEquivalencesTable {
   id: Generated<string>;
   food_id: string | null;
@@ -219,4 +228,5 @@ export interface Database {
   recipe_cook_events: RecipeCookEventsTable;
   comments: CommentsTable;
   reports: ReportsTable;
+  password_reset_tokens: PasswordResetTokensTable;
 }

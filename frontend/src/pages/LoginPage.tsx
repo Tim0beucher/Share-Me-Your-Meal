@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { AuthResult } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
@@ -50,6 +50,9 @@ export function LoginPage() {
           {loading ? 'Connexion...' : 'Se connecter'}
         </button>
       </form>
+      <p style={{ marginTop: 14, fontSize: '0.85rem' }}>
+        <Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
+      </p>
     </div>
   );
 }
