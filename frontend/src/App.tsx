@@ -6,7 +6,9 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CreateRecipePage } from './pages/CreateRecipePage';
 import { FeedPage } from './pages/FeedPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { LegalNoticePage } from './pages/LegalNoticePage';
 import { LoginPage } from './pages/LoginPage';
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RecipeDetailPage } from './pages/RecipeDetailPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -21,6 +23,8 @@ export function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
         <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
+        <Route path="/mentions-legales" element={<LegalNoticePage />} />
+        <Route path="/confidentialite" element={<PrivacyPolicyPage />} />
         <Route path="/recipes/:id" element={<RecipeDetailPage />} />
         <Route
           path="/recipes/new"

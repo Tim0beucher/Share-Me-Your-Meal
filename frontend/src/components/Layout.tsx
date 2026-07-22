@@ -36,6 +36,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
       <div className="container">{children}</div>
+      <footer className="footer">
+        <Link to="/mentions-legales">Mentions légales</Link>
+        <Link to="/confidentialite">Confidentialité</Link>
+      </footer>
     </>
   );
 }
