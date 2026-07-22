@@ -1,18 +1,12 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn } from 'class-validator';
+
+export const TIMESERIES_PERIODS = ['24h', '7d', '14d', '1m', '3m', '6m', '1y', 'all'] as const;
+export type TimeseriesPeriod = (typeof TIMESERIES_PERIODS)[number];
 
 export class TimeseriesQueryDto {
   @IsIn(['users', 'recipes', 'comments', 'reports'])
   metric!: 'users' | 'recipes' | 'comments' | 'reports';
 
-  @IsIn(['day', 'week', 'month'])
-  @IsOptional()
-  granularity?: 'day' | 'week' | 'month' = 'day';
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  @IsOptional()
-  count?: number = 14;
+  @IsIn(TIMESERIES_PERIODS)
+  period!: TimeseriesPeriod;
 }

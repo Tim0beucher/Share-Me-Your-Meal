@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
 import { Database } from '../db/types';
+import { TimeseriesPeriod } from './dto/timeseries-query.dto';
 import { ReportsService } from '../reports/reports.service';
 
 // Whitelist stricte : metric est validé par TimeseriesQueryDto (@IsIn) avant
@@ -13,6 +14,23 @@ const TIMESERIES_CONFIG = {
   comments: { table: 'comments', dateColumn: 'created_at', filterDeleted: true },
   reports: { table: 'reports', dateColumn: 'created_at', filterDeleted: false },
 } as const;
+
+type Granularity = 'hour' | 'day' | 'week' | 'month';
+
+// Correspondance période choisie -> granularité des points + nombre de
+// points affichés. "all" est un cas particulier : le nombre de points dépend
+// de l'ancienneté des données, résolu dynamiquement dans timeseries().
+const FIXED_PERIODS: Record<Exclude<TimeseriesPeriod, 'all'>, { granularity: Granularity; count: number }> = {
+  '24h': { granularity: 'hour', count: 24 },
+  '7d': { granularity: 'day', count: 7 },
+  '14d': { granularity: 'day', count: 14 },
+  '1m': { granularity: 'day', count: 30 },
+  '3m': { granularity: 'week', count: 13 },
+  '6m': { granularity: 'week', count: 26 },
+  '1y': { granularity: 'month', count: 12 },
+};
+
+const ALL_TIME_MAX_MONTHS = 120; // 10 ans, garde-fou plutôt qu'une vraie limite métier
 
 @Injectable()
 export class AdminService {
@@ -41,13 +59,11 @@ export class AdminService {
   }
 
   // Série temporelle de créations (nouveaux utilisateurs/recettes/commentaires
-  // par jour, semaine ou mois), pour les graphiques en courbe du dashboard.
-  async timeseries(
-    metric: 'users' | 'recipes' | 'comments' | 'reports',
-    granularity: 'day' | 'week' | 'month',
-    count: number,
-  ) {
+  // par heure, jour, semaine ou mois selon la période choisie), pour les
+  // graphiques en courbe du dashboard.
+  async timeseries(metric: 'users' | 'recipes' | 'comments' | 'reports', period: TimeseriesPeriod) {
     const config = TIMESERIES_CONFIG[metric];
+    const { granularity, count } = await this.resolvePeriod(config, period);
     const step = sql<string>`(1 || ' ' || ${granularity})::interval`;
     const deletedFilter = config.filterDeleted ? sql`AND t.deleted_at IS NULL` : sql``;
 
@@ -69,6 +85,23 @@ export class AdminService {
     `.execute(this.db);
 
     return rows.rows.map((r) => ({ date: r.bucket_start, count: Number(r.count) }));
+  }
+
+  private async resolvePeriod(
+    config: (typeof TIMESERIES_CONFIG)[keyof typeof TIMESERIES_CONFIG],
+    period: TimeseriesPeriod,
+  ): Promise<{ granularity: Granularity; count: number }> {
+    if (period !== 'all') return FIXED_PERIODS[period];
+
+    const oldest = await sql<{ min_date: Date | null }>`
+      SELECT MIN(${sql.raw(config.dateColumn)}) AS min_date FROM ${sql.raw(config.table)}
+    `.execute(this.db);
+
+    const minDate = oldest.rows[0]?.min_date;
+    if (!minDate) return { granularity: 'month', count: 1 };
+
+    const months = Math.floor((Date.now() - new Date(minDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) + 1;
+    return { granularity: 'month', count: Math.min(Math.max(months, 1), ALL_TIME_MAX_MONTHS) };
   }
 
   listReports() {

@@ -18,7 +18,7 @@ export class AdminController {
 
   @Get('stats/timeseries')
   timeseries(@Query() query: TimeseriesQueryDto) {
-    return this.admin.timeseries(query.metric, query.granularity ?? 'day', query.count ?? 14);
+    return this.admin.timeseries(query.metric, query.period);
   }
 
   @Get('reports')

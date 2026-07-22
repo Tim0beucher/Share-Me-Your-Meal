@@ -22,6 +22,33 @@ const METRIC_TO_API: Record<Metric, string> = {
   comments: 'comments',
 };
 
+type Period = '24h' | '7d' | '14d' | '1m' | '3m' | '6m' | '1y' | 'all';
+
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: '24h', label: 'Dernières 24h' },
+  { value: '7d', label: 'Semaine dernière' },
+  { value: '14d', label: 'Deux semaines' },
+  { value: '1m', label: '1 mois' },
+  { value: '3m', label: '3 mois' },
+  { value: '6m', label: '6 mois' },
+  { value: '1y', label: '1 an' },
+  { value: 'all', label: 'Tout' },
+];
+
+// Reflète la granularité choisie côté backend pour chaque période (voir
+// FIXED_PERIODS dans admin.service.ts), pour formater les libellés de dates
+// du graphique en conséquence (heure, jour ou mois).
+const PERIOD_GRANULARITY: Record<Period, 'hour' | 'day' | 'week' | 'month'> = {
+  '24h': 'hour',
+  '7d': 'day',
+  '14d': 'day',
+  '1m': 'day',
+  '3m': 'week',
+  '6m': 'week',
+  '1y': 'month',
+  all: 'month',
+};
+
 const STATUS_LABELS: Record<string, string> = {
   en_attente: 'En attente',
   traite: 'Traité',
@@ -42,6 +69,7 @@ export function AdminDashboardPage() {
   const [reports, setReports] = useState<AdminReport[] | null>(null);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null);
+  const [period, setPeriod] = useState<Period>('14d');
   const [chartData, setChartData] = useState<LineChartPoint[] | null>(null);
 
   const loadAll = () => {
@@ -52,17 +80,16 @@ export function AdminDashboardPage() {
 
   useEffect(loadAll, []);
 
-  const selectMetric = (metric: Metric) => {
-    if (selectedMetric === metric) {
-      setSelectedMetric(null);
-      setChartData(null);
-      return;
-    }
-    setSelectedMetric(metric);
+  useEffect(() => {
+    if (!selectedMetric) return;
     setChartData(null);
     api
-      .get<LineChartPoint[]>(`/admin/stats/timeseries?metric=${METRIC_TO_API[metric]}&granularity=day&count=14`)
+      .get<LineChartPoint[]>(`/admin/stats/timeseries?metric=${METRIC_TO_API[selectedMetric]}&period=${period}`)
       .then(setChartData);
+  }, [selectedMetric, period]);
+
+  const selectMetric = (metric: Metric) => {
+    setSelectedMetric((prev) => (prev === metric ? null : metric));
   };
 
   const resolveReport = async (id: string, status: 'traite' | 'rejete') => {
@@ -122,8 +149,21 @@ export function AdminDashboardPage() {
 
       {selectedMetric && (
         <div className="card">
-          <h2>{METRIC_LABELS[selectedMetric]} — 14 derniers jours</h2>
-          {chartData === null ? <p>Chargement...</p> : <LineChart points={chartData} label={METRIC_LABELS[selectedMetric]} />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <h2 style={{ margin: 0 }}>{METRIC_LABELS[selectedMetric]}</h2>
+            <select value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+              {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {chartData === null ? (
+            <p>Chargement...</p>
+          ) : (
+            <LineChart points={chartData} label={METRIC_LABELS[selectedMetric]} granularity={PERIOD_GRANULARITY[period]} />
+          )}
         </div>
       )}
 
