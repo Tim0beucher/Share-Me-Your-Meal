@@ -10,8 +10,19 @@ export class RecipesController {
   constructor(private readonly recipes: RecipesService) {}
 
   @Get()
-  listFeed(@Query('limit') limit?: string) {
-    return this.recipes.listFeed(limit ? Number(limit) : undefined);
+  listFeed(
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('minCalories') minCalories?: string,
+    @Query('maxCalories') maxCalories?: string,
+    @Query('minProtein') minProtein?: string,
+  ) {
+    return this.recipes.listFeed(limit ? Number(limit) : undefined, {
+      search: search?.trim() || undefined,
+      minCalories: minCalories ? Number(minCalories) : undefined,
+      maxCalories: maxCalories ? Number(maxCalories) : undefined,
+      minProtein: minProtein ? Number(minProtein) : undefined,
+    });
   }
 
   @Get(':id')

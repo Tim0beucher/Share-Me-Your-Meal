@@ -6,6 +6,13 @@ import { AdaptRecipeDto } from './dto/adapt-recipe.dto';
 import { CreateRecipeDto, RecipeStepInputDto } from './dto/create-recipe.dto';
 import { aggregate, MacroTotals, per100g, perServing, resolveIngredients, ResolvedIngredient } from './macro-calculator';
 
+export interface ListFeedFilters {
+  search?: string;
+  minCalories?: number;
+  maxCalories?: number;
+  minProtein?: number;
+}
+
 @Injectable()
 export class RecipesService {
   constructor(@Inject(KYSELY) private readonly db: Kysely<Database>) {}
@@ -87,7 +94,7 @@ export class RecipesService {
     return { ...this.toResponse(recipe, resolved, totals), steps, adaptedCount: Number(adaptedCount.count) };
   }
 
-  async listFeed(limit = 20) {
+  async listFeed(limit = 20, filters: ListFeedFilters = {}) {
     const rows = await this.db
       .selectFrom('recipes')
       .innerJoin('users', 'users.id', 'recipes.author_id')
@@ -118,6 +125,14 @@ export class RecipesService {
       .where('recipes.status', '=', 'publiee')
       .where('recipes.visibility', '=', 'publique')
       .where('recipes.deleted_at', 'is', null)
+      .$if(!!filters.search, (qb) => qb.where('recipes.title', 'ilike', `%${filters.search}%`))
+      .$if(filters.minCalories !== undefined, (qb) =>
+        qb.where('recipes.total_calories_kcal', '>=', filters.minCalories!),
+      )
+      .$if(filters.maxCalories !== undefined, (qb) =>
+        qb.where('recipes.total_calories_kcal', '<=', filters.maxCalories!),
+      )
+      .$if(filters.minProtein !== undefined, (qb) => qb.where('recipes.total_protein_g', '>=', filters.minProtein!))
       .orderBy('recipes.created_at', 'desc')
       .limit(limit)
       .execute();

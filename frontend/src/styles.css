@@ -239,6 +239,24 @@ select:focus-visible {
   font-size: 0.9rem;
 }
 
+.feed-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feed-filters__macros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.feed-filters__macros .field {
+  margin-bottom: 0;
+  width: 130px;
+}
+
 .recipe-card {
   display: flex;
   flex-direction: column;
