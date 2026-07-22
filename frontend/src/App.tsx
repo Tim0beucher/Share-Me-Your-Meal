@@ -2,8 +2,10 @@ import { Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAuth } from './auth/RequireAuth';
+import { useAuth } from './auth/AuthContext';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { CreateRecipePage } from './pages/CreateRecipePage';
+import { DashboardPage } from './pages/DashboardPage';
 import { EditRecipePage } from './pages/EditRecipePage';
 import { FeedPage } from './pages/FeedPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -16,10 +18,13 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 export function App() {
+  const { user } = useAuth();
+
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<FeedPage />} />
+        <Route path="/" element={user ? <DashboardPage /> : <FeedPage />} />
+        <Route path="/recettes" element={<FeedPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
