@@ -27,6 +27,14 @@ export interface FoodSearchResult {
   fat_g_per_100g: number;
 }
 
+export interface ParsedIngredient {
+  raw: string;
+  quantity: number;
+  quantityGuessed: boolean;
+  matched: FoodSearchResult | null;
+  alternatives: FoodSearchResult[];
+}
+
 export interface MacroSet {
   calories: number;
   protein: number;

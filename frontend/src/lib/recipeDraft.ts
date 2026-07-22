@@ -6,6 +6,12 @@ export interface DraftIngredient {
   state: string;
   grams: number;
   per100g: MacroSet;
+  // Suggestions alternatives proposées par l'analyse de texte libre, pour
+  // corriger en un clic un aliment mal reconnu (voir IngredientTextParser).
+  alternatives?: FoodSearchResult[];
+  // Quantité non précisée dans le texte libre, remplacée par une valeur par
+  // défaut (100 g) à faire vérifier par l'utilisateur.
+  quantityGuessed?: boolean;
 }
 
 export function toPer100g(food: FoodSearchResult): MacroSet {

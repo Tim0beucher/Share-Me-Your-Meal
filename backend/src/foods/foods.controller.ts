@@ -1,4 +1,5 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ParseIngredientsDto } from './dto/parse-ingredients.dto';
 import { FoodsService } from './foods.service';
 
 @Controller('foods')
@@ -13,5 +14,10 @@ export class FoodsController {
   @Get(':id/cooked-equivalents')
   cookedEquivalents(@Param('id') id: string) {
     return this.foods.cookedEquivalents(id);
+  }
+
+  @Post('parse-ingredients')
+  parseIngredients(@Body() dto: ParseIngredientsDto) {
+    return this.foods.parseIngredients(dto.text);
   }
 }

@@ -2,6 +2,8 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
 import { Database } from '../db/types';
+import { resolveIngredients } from '../recipes/macro-calculator';
+import { parseIngredientText } from './ingredient-text-parser';
 
 const NUTRITION_COLUMNS = [
   'id',
@@ -13,6 +15,8 @@ const NUTRITION_COLUMNS = [
   'carbs_g_per_100g',
   'fat_g_per_100g',
 ] as const;
+
+const round = (n: number) => Math.round(n * 100) / 100;
 
 @Injectable()
 export class FoodsService {
@@ -47,5 +51,72 @@ export class FoodsService {
       .orderBy(sql`similarity(name, ${source.name})`, 'desc')
       .limit(limit)
       .execute();
+  }
+
+  // Transforme un texte libre ("200g de poulet cru, 150g de riz cru et 250g
+  // de haricots verts") en une liste d'ingrédients prêts à être ajoutés à une
+  // recette : chaque segment est mis en correspondance avec l'aliment le
+  // plus proche par similarité de nom (pg_trgm), et sa quantité convertie en
+  // grammes via les mêmes équivalences d'unité qu'une recette classique.
+  async parseIngredients(text: string) {
+    const segments = parseIngredientText(text);
+
+    const results = [];
+    for (const segment of segments) {
+      const candidates = await this.db
+        .selectFrom('foods')
+        .select([...NUTRITION_COLUMNS, sql<number>`similarity(name, ${segment.name})`.as('score')])
+        .where(sql<boolean>`similarity(name, ${segment.name}) > 0.15`)
+        .orderBy(sql`similarity(name, ${segment.name})`, 'desc')
+        .limit(4)
+        .execute();
+
+      const [best, ...alternatives] = candidates;
+      let grams = round(segment.quantity);
+
+      if (best && segment.unit !== 'gramme') {
+        try {
+          const [resolved] = await resolveIngredients(this.db, [
+            { foodId: best.id, quantity: segment.quantity, unit: segment.unit },
+          ]);
+          grams = round(resolved.grams);
+        } catch {
+          // Pas d'équivalence connue pour cette unité avec cet aliment :
+          // on garde la quantité brute (traitée comme des grammes), à
+          // corriger manuellement si besoin plutôt que de faire échouer
+          // tout le texte pour une seule ligne.
+        }
+      }
+
+      results.push({
+        raw: segment.raw,
+        quantity: grams,
+        quantityGuessed: segment.quantityGuessed,
+        matched: best
+          ? {
+              id: best.id,
+              name: best.name,
+              brand: best.brand,
+              state: best.state,
+              calories_kcal_per_100g: best.calories_kcal_per_100g,
+              protein_g_per_100g: best.protein_g_per_100g,
+              carbs_g_per_100g: best.carbs_g_per_100g,
+              fat_g_per_100g: best.fat_g_per_100g,
+            }
+          : null,
+        alternatives: alternatives.map((a) => ({
+          id: a.id,
+          name: a.name,
+          brand: a.brand,
+          state: a.state,
+          calories_kcal_per_100g: a.calories_kcal_per_100g,
+          protein_g_per_100g: a.protein_g_per_100g,
+          carbs_g_per_100g: a.carbs_g_per_100g,
+          fat_g_per_100g: a.fat_g_per_100g,
+        })),
+      });
+    }
+
+    return results;
   }
 }
