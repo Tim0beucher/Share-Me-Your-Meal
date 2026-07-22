@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminService } from './admin.service';
 import { ResolveReportDto } from './dto/resolve-report.dto';
+import { TimeseriesQueryDto } from './dto/timeseries-query.dto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('admin')
@@ -13,6 +14,11 @@ export class AdminController {
   @Get('stats')
   stats() {
     return this.admin.stats();
+  }
+
+  @Get('stats/timeseries')
+  timeseries(@Query() query: TimeseriesQueryDto) {
+    return this.admin.timeseries(query.metric, query.granularity ?? 'day', query.count ?? 14);
   }
 
   @Get('reports')

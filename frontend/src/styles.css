@@ -355,6 +355,22 @@ select:focus-visible {
   border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
 }
 
+.macro-grid__item--clickable {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.macro-grid__item--clickable:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-2));
+}
+
+.macro-grid__item.macro-grid__item--active {
+  background: color-mix(in srgb, var(--color-primary) 20%, var(--color-surface-2));
+  border-color: var(--color-primary);
+}
+
 .macro-grid__item:first-child .macro-grid__value {
   color: var(--color-primary);
 }

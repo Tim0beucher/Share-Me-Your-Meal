@@ -1,6 +1,26 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { AdminReport, AdminStats, AdminUser } from '../api/types';
+import { LineChart, LineChartPoint } from '../components/LineChart';
+
+type Metric = 'pendingReports' | 'users' | 'recipes' | 'comments';
+
+const METRIC_LABELS: Record<Metric, string> = {
+  pendingReports: 'Signalements en attente',
+  users: 'Nouveaux utilisateurs',
+  recipes: 'Nouvelles recettes',
+  comments: 'Nouveaux commentaires',
+};
+
+// "pendingReports" est un statut instantané (nombre de signalements non
+// traités), pas une création : on trace plutôt les signalements créés dans
+// le temps (endpoint "reports"), la tendance la plus proche et utile ici.
+const METRIC_TO_API: Record<Metric, string> = {
+  pendingReports: 'reports',
+  users: 'users',
+  recipes: 'recipes',
+  comments: 'comments',
+};
 
 const STATUS_LABELS: Record<string, string> = {
   en_attente: 'En attente',
@@ -21,6 +41,8 @@ export function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [reports, setReports] = useState<AdminReport[] | null>(null);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<Metric | null>(null);
+  const [chartData, setChartData] = useState<LineChartPoint[] | null>(null);
 
   const loadAll = () => {
     api.get<AdminStats>('/admin/stats').then(setStats);
@@ -29,6 +51,19 @@ export function AdminDashboardPage() {
   };
 
   useEffect(loadAll, []);
+
+  const selectMetric = (metric: Metric) => {
+    if (selectedMetric === metric) {
+      setSelectedMetric(null);
+      setChartData(null);
+      return;
+    }
+    setSelectedMetric(metric);
+    setChartData(null);
+    api
+      .get<LineChartPoint[]>(`/admin/stats/timeseries?metric=${METRIC_TO_API[metric]}&granularity=day&count=14`)
+      .then(setChartData);
+  };
 
   const resolveReport = async (id: string, status: 'traite' | 'rejete') => {
     await api.patch(`/admin/reports/${id}`, { status });
@@ -51,23 +86,46 @@ export function AdminDashboardPage() {
       <h1>Dashboard admin</h1>
 
       <div className="macro-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <div className="macro-grid__item">
+        <button
+          type="button"
+          className={`macro-grid__item macro-grid__item--clickable${selectedMetric === 'pendingReports' ? ' macro-grid__item--active' : ''}`}
+          onClick={() => selectMetric('pendingReports')}
+        >
           <span className="macro-grid__value">{stats?.pendingReports ?? '—'}</span>
           <span className="macro-grid__label">Signalements en attente</span>
-        </div>
-        <div className="macro-grid__item">
+        </button>
+        <button
+          type="button"
+          className={`macro-grid__item macro-grid__item--clickable${selectedMetric === 'users' ? ' macro-grid__item--active' : ''}`}
+          onClick={() => selectMetric('users')}
+        >
           <span className="macro-grid__value">{stats?.users ?? '—'}</span>
           <span className="macro-grid__label">Utilisateurs</span>
-        </div>
-        <div className="macro-grid__item">
+        </button>
+        <button
+          type="button"
+          className={`macro-grid__item macro-grid__item--clickable${selectedMetric === 'recipes' ? ' macro-grid__item--active' : ''}`}
+          onClick={() => selectMetric('recipes')}
+        >
           <span className="macro-grid__value">{stats?.recipes ?? '—'}</span>
           <span className="macro-grid__label">Recettes</span>
-        </div>
-        <div className="macro-grid__item">
+        </button>
+        <button
+          type="button"
+          className={`macro-grid__item macro-grid__item--clickable${selectedMetric === 'comments' ? ' macro-grid__item--active' : ''}`}
+          onClick={() => selectMetric('comments')}
+        >
           <span className="macro-grid__value">{stats?.comments ?? '—'}</span>
           <span className="macro-grid__label">Commentaires</span>
-        </div>
+        </button>
       </div>
+
+      {selectedMetric && (
+        <div className="card">
+          <h2>{METRIC_LABELS[selectedMetric]} — 14 derniers jours</h2>
+          {chartData === null ? <p>Chargement...</p> : <LineChart points={chartData} label={METRIC_LABELS[selectedMetric]} />}
+        </div>
+      )}
 
       <div className="card">
         <h2>Signalements</h2>

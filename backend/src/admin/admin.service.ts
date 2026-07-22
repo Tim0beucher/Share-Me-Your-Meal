@@ -1,8 +1,18 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { KYSELY } from '../db/database.module';
 import { Database } from '../db/types';
 import { ReportsService } from '../reports/reports.service';
+
+// Whitelist stricte : metric est validé par TimeseriesQueryDto (@IsIn) avant
+// d'arriver ici, donc interpoler ces valeurs de config (jamais l'entrée
+// utilisateur brute) dans du SQL brut via sql.raw est sûr.
+const TIMESERIES_CONFIG = {
+  users: { table: 'users', dateColumn: 'created_at', filterDeleted: false },
+  recipes: { table: 'recipes', dateColumn: 'created_at', filterDeleted: true },
+  comments: { table: 'comments', dateColumn: 'created_at', filterDeleted: true },
+  reports: { table: 'reports', dateColumn: 'created_at', filterDeleted: false },
+} as const;
 
 @Injectable()
 export class AdminService {
@@ -28,6 +38,37 @@ export class AdminService {
       comments: Number(comments.count),
       pendingReports: Number(pendingReports.count),
     };
+  }
+
+  // Série temporelle de créations (nouveaux utilisateurs/recettes/commentaires
+  // par jour, semaine ou mois), pour les graphiques en courbe du dashboard.
+  async timeseries(
+    metric: 'users' | 'recipes' | 'comments' | 'reports',
+    granularity: 'day' | 'week' | 'month',
+    count: number,
+  ) {
+    const config = TIMESERIES_CONFIG[metric];
+    const step = sql<string>`(1 || ' ' || ${granularity})::interval`;
+    const deletedFilter = config.filterDeleted ? sql`AND t.deleted_at IS NULL` : sql``;
+
+    const rows = await sql<{ bucket_start: Date; count: string }>`
+      WITH buckets AS (
+        SELECT generate_series(
+          date_trunc(${granularity}, now()) - (${count - 1}) * ${step},
+          date_trunc(${granularity}, now()),
+          ${step}
+        ) AS bucket_start
+      )
+      SELECT b.bucket_start, COUNT(t.id)::int AS count
+      FROM buckets b
+      LEFT JOIN ${sql.raw(config.table)} t
+        ON date_trunc(${granularity}, t.${sql.raw(config.dateColumn)}) = b.bucket_start
+        ${deletedFilter}
+      GROUP BY b.bucket_start
+      ORDER BY b.bucket_start
+    `.execute(this.db);
+
+    return rows.rows.map((r) => ({ date: r.bucket_start, count: Number(r.count) }));
   }
 
   listReports() {
